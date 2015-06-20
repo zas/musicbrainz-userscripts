@@ -47,10 +47,32 @@ $(document).ready(function(){
     var current_page_key = getDiscogsLinkKey(window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '').replace('/master/view/', '/master/'));
     if (!current_page_key) return;
 
-    // disable evil pjax (used for artist page navigation)
-    // it causes various annoying issues with our code;
-    // it should be possible to react to pjax events
-    $("div#pjax_container").attr('id', 'pjax_disabled');
+    // pjax is used for page navigation, re-run insertMBLinks() on new "page" when needed
+    var container = document.querySelector('div#pjax_container');
+
+    var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+    if (MutationObserver) {
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          // the pjax-container class passes from 'loading' to '' when finished
+          if (mutation.type == 'attributes'
+              && mutation.oldValue == 'loading'
+              && mutation.target.getAttribute(mutation.attributeName) == '') {
+            insertMBLinks(current_page_key, '#artist');
+          }
+        });
+      });
+      observer.observe(container, {
+        attributes : true,
+        attributeOldValue : true,
+        attributeFilter: ['class'], // we only consider the `class` attribute
+      });
+    } else {
+      // disable evil pjax (used for artist page navigation)
+      // it causes various annoying issues with our code;
+      // it should be possible to react to pjax events
+      $("div#pjax_container").attr('id', 'pjax_disabled');
+    }
 
     // Display links of equivalent MusicBrainz entities
     insertMBLinks(current_page_key);
@@ -98,7 +120,7 @@ $(document).ready(function(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Insert MusicBrainz links in a section of the page
-function insertMBLinks(current_page_key) {
+function insertMBLinks(current_page_key, root) {
 
     function searchAndDisplayMbLinkInSection($tr, discogs_type, mb_type, nosearch) {
         if (!mb_type) mb_type = defaultMBtype(discogs_type);
@@ -229,12 +251,20 @@ function insertMBLinks(current_page_key) {
         $h1.prepend(link);
       }
     }
-    var current_page_info = link_infos[current_page_key];
-    var mb_type = defaultMBtype(current_page_info.type);
-    var cachekey = getCacheKeyFromInfo(current_page_key, mb_type);
-    mblinks.searchAndDisplayMbLink(current_page_info.clean_url, mb_type, mbLinkInsert, cachekey);
 
-    var $root = $('body');
+
+    var $root;
+    if (typeof root === 'undefined') {
+      var current_page_info = link_infos[current_page_key];
+      var mb_type = defaultMBtype(current_page_info.type);
+      var cachekey = getCacheKeyFromInfo(current_page_key, mb_type);
+      mblinks.searchAndDisplayMbLink(current_page_info.clean_url, mb_type, mbLinkInsert, cachekey);
+
+      $root = $('body')
+
+    } else {
+      $root = $(root);
+    }
     add_mblinks($root, 'div.profile', ['artist', 'label']);
     add_mblinks($root, 'tr[data-object-type="release"] td.artist,td.title', 'artist');
     add_mblinks($root, 'tr[data-object-type="release"] td.title', 'release');
