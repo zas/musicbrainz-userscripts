@@ -442,6 +442,9 @@ function parseDiscogsRelease(data) {
             'joinphrase': decodeDiscogsJoinphrase(artist.join),
             'mbid': MBIDfromUrl(artist.resource_url, 'artist')
         };
+        if (artist.id == 194) { // discogs place holder for various
+          ac = MBImport.specialArtist('various_artists', ac);
+        }
         release.artist_credit.push(ac);
     });
 
